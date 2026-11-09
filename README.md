@@ -57,6 +57,14 @@ Run the demo — deploys WHITEHAT's own intentionally vulnerable contracts to a 
 npm run demo
 ```
 
+Run the **detection benchmark** — deploys a suite of vulnerable + known-clean contracts, runs the real scanner in source and bytecode-only modes, and writes a measured detect/miss/false-positive matrix to [`docs/benchmark.md`](docs/benchmark.md):
+
+```bash
+npm run benchmark
+```
+
+Latest measured run: **12/12 vulnerability classes detected, 10 reproduced Confirmed on fork, 0 missed, 0 false positives** on the clean controls. These numbers describe this suite, not a general accuracy rate — see [`docs/STATUS.md`](docs/STATUS.md) for an honest account of what's proven, tested locally, and still open.
+
 Run the site:
 
 ```bash
@@ -66,8 +74,8 @@ npm run dev          # http://localhost:3000
 Run the test suites:
 
 ```bash
-npm test             # TypeScript unit tests (evidence, guard, signatures, disclosure, quantum, budget)
-npm run test:contracts   # Foundry fuzz + invariant proofs on the demo contracts
+npm test             # 49 TypeScript unit tests (evidence, live-network+testnet guard, signatures, disclosure, quantum, budget, queue durability, privacy API gate)
+npm run test:contracts   # 15 Foundry fuzz + invariant proofs on the demo contracts
 ```
 
 ### Foundry / Slither
@@ -124,6 +132,8 @@ Creator fees from `$WHITEHAT` fund compute and bounties, with a public ledger of
 
 ## Docs
 
+- [`docs/STATUS.md`](docs/STATUS.md) — **honest status**: what's proven, tested locally, needs keys, and still blocks launch.
+- [`docs/benchmark.md`](docs/benchmark.md) — measured detection matrix (regenerate with `npm run benchmark`).
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) — what WHITEHAT defends, the trust boundaries, and the safety guarantees.
 - [`docs/costs.md`](docs/costs.md) — AI pricing and budget behaviour.
 - [`docs/economics.md`](docs/economics.md) — coin fee flow and launchpad research.

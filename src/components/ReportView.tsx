@@ -99,6 +99,31 @@ function Loading({ label, elapsed, target }: { label: string; elapsed?: number; 
   );
 }
 
+function EvidenceLegend() {
+  return (
+    <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 14, alignItems: "center" }}>
+      <span className="tag" data-ev="CONFIRMED_ON_FORK">
+        Confirmed on fork
+      </span>
+      <span className="faint" style={{ fontSize: "0.82rem" }}>
+        reproduced on a private fork
+      </span>
+      <span className="tag" data-ev="LIKELY">
+        Likely
+      </span>
+      <span className="faint" style={{ fontSize: "0.82rem" }}>
+        strong static evidence
+      </span>
+      <span className="tag" data-ev="REVIEW">
+        Review
+      </span>
+      <span className="faint" style={{ fontSize: "0.82rem" }}>
+        AI lead to verify — not confirmed
+      </span>
+    </div>
+  );
+}
+
 function Spinner() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" style={{ animation: "spin 0.9s linear infinite" }} aria-hidden>
@@ -137,6 +162,7 @@ function ContractReportView({ r }: { r: ContractReport }) {
 
       <section>
         <SectionHead title={r.findings.length ? "Findings" : "No issues found by these checks"} count={r.findings.length} />
+        {r.findings.length > 0 && <EvidenceLegend />}
         {r.findings.length === 0 ? (
           <div className="panel" style={{ padding: 22 }}>
             <p className="muted measure">

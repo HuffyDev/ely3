@@ -1,4 +1,4 @@
-import { recoverPublicKey, type Hex } from "viem";
+import { recoverPublicKey, serializeTransaction, keccak256, type Hex } from "viem";
 import { publicKeyToAddress } from "viem/accounts";
 import { getClient, type NetworkId } from "../chain";
 import { fetchAddressTxs } from "../explorer";
@@ -26,7 +26,10 @@ export type WalletQuantum = {
   address: string;
   network: string;
   publicKeyExposed: boolean;
+  isContract: boolean;
+  nonce: number;
   firstSpendTx?: string;
+  recoveredPublicKey?: string;
   balanceWei: string;
   balanceAtRisk: boolean;
   grade: Grade;
@@ -36,47 +39,75 @@ export type WalletQuantum = {
 };
 
 /**
- * Recovers the sender's public key from a signed transaction, proving it is now public.
- * We only READ transactions (never send). If the explorer or RPC can't give us a signed
- * outbound tx, we report "not determined" rather than guessing.
+ * Determines, from chain data alone, whether a wallet's public key is already exposed.
+ *
+ * The definitive signal is the account nonce (eth_getTransactionCount): an EOA's public key is
+ * revealed the first time it SENDS a transaction, because anyone can recover the public key from
+ * that transaction's ECDSA signature. So nonce > 0 ⟺ at least one signature has been published
+ * ⟺ the public key is recoverable. This needs only the RPC and is always available.
+ *
+ * When an explorer is configured we also surface the first outbound tx hash and, best effort,
+ * cryptographically recover the public key from a real signed transaction to demonstrate the
+ * point. We only ever READ; nothing is sent.
  */
 export async function walletQuantumReadiness(network: NetworkId, address: string): Promise<WalletQuantum> {
   const { client } = await getClient(network);
-  const balance = await client.getBalance({ address: address as Hex });
-  const txs = (await fetchAddressTxs(address)) ?? [];
-  const outbound = txs.filter((t) => t.from.toLowerCase() === address.toLowerCase());
+  const [balance, nonce, code] = await Promise.all([
+    client.getBalance({ address: address as Hex }),
+    client.getTransactionCount({ address: address as Hex }),
+    client.getCode({ address: address as Hex }).catch(() => undefined),
+  ]);
+  const isContract = !!code && code !== "0x";
 
-  let exposed = false;
+  // Nonce > 0 is the definitive, RPC-only determination of public-key exposure for an EOA.
+  const exposed = !isContract && nonce > 0;
   let firstSpend: string | undefined;
+  let recoveredKey: string | undefined;
   let coverageNote = "";
-  if (outbound.length > 0) {
-    // Any outbound transaction exposes the public key via its signature. We confirm by
-    // recovering the key from the oldest outbound transaction we can read.
-    const oldest = outbound[outbound.length - 1];
-    firstSpend = oldest.hash;
-    exposed = true;
-    coverageNote = `Found ${outbound.length} outbound transaction(s); the public key is recoverable from their signatures.`;
-  } else if (txs.length === 0) {
-    coverageNote = "No transaction history was available from the explorer, so public-key exposure could not be determined from history.";
+
+  if (isContract) {
+    coverageNote = "This address holds contract code, not an externally-owned wallet, so the public-key exposure question does not apply the same way. See the contract report for its signature and admin-key dependence.";
+  } else if (exposed) {
+    coverageNote = `Account nonce is ${nonce}: this wallet has sent ${nonce} transaction(s), so its public key is recoverable from those signatures.`;
+    // Best effort: find the first outbound tx and recover the key from it to demonstrate exposure.
+    const txs = (await fetchAddressTxs(address)) ?? [];
+    const outbound = txs.filter((t) => t.from.toLowerCase() === address.toLowerCase());
+    if (outbound.length > 0) {
+      firstSpend = outbound[outbound.length - 1].hash;
+      try {
+        const key = await recoverKeyFromTx(network, firstSpend);
+        if (key && addressFromPublicKey(key).toLowerCase() === address.toLowerCase()) {
+          recoveredKey = key;
+          coverageNote += " We recovered the public key from the first outbound transaction and confirmed it matches this address.";
+        }
+      } catch {
+        /* recovery is a demonstration only; the nonce already settles exposure */
+      }
+    }
   } else {
-    coverageNote = "No outbound (signed) transaction was found, so the public key does not appear to be exposed yet.";
+    coverageNote = `Account nonce is 0: this wallet has never sent a transaction, so its public key is not yet exposed on-chain.`;
   }
 
   const balanceAtRisk = exposed && balance > 0n;
-  const points: { title: string; detail: string; level: "exposed" | "note" | "ok" }[] = [];
   const explanation: string[] = [];
-  if (exposed) {
+  if (isContract) {
     explanation.push(
-      "This wallet has sent at least one transaction, so its public key is already recorded on-chain. That is normal and not dangerous today.",
+      "This address is a contract, not a personal wallet. Contracts don't have a single public key the way wallets do; their signature and admin-key exposure is covered in the contract report.",
+    );
+  } else if (exposed) {
+    explanation.push(
+      `This wallet has sent ${nonce} transaction(s), so its public key is already recorded on-chain and anyone can recover it. That is normal and not dangerous today.`,
     );
     if (balance > 0n) {
       explanation.push(
         "Because the wallet still holds a balance and its public key is exposed, it falls into the group that a future quantum computer could, in principle, target. Again: not today, and not certainly ever.",
       );
+    } else {
+      explanation.push("The public key is exposed, but this wallet holds no balance, so there is nothing at risk here today.");
     }
   } else {
     explanation.push(
-      "This wallet does not appear to have exposed its public key yet (no outbound transaction found). Keeping funds on an address that has never spent gives an extra margin of long-term safety.",
+      "This wallet has never sent a transaction, so its public key is not yet exposed on-chain. Keeping funds on an address that has never spent gives an extra margin of long-term safety.",
     );
   }
   explanation.push(QUANTUM_DISCLAIMER);
@@ -93,21 +124,62 @@ export async function walletQuantumReadiness(network: NetworkId, address: string
   let score = 100;
   if (exposed) score -= 20;
   if (balanceAtRisk) score -= 25;
-  if (txs.length === 0) score -= 10;
   score = Math.max(0, score);
+
+  const label = isContract
+    ? "Contract address — see the contract report"
+    : exposed
+      ? "Public key exposed (a readiness consideration, not a present threat)"
+      : "Public key not yet exposed";
 
   return {
     address,
     network,
     publicKeyExposed: exposed,
     firstSpendTx: firstSpend,
+    recoveredPublicKey: recoveredKey,
+    isContract,
+    nonce,
     balanceWei: balance.toString(),
     balanceAtRisk,
-    grade: { letter: letterFor(score), score, limitedCoverage: txs.length === 0, label: exposed ? "Public key exposed (a readiness consideration, not a present threat)" : "Public key not yet exposed" },
+    grade: { letter: letterFor(score), score, limitedCoverage: false, label },
     explanation,
     checklist,
     coverageNote,
   };
+}
+
+/**
+ * Recovers the signer's public key from a real on-chain transaction, proving the key is public.
+ * Read-only. Supports legacy and EIP-1559/2930 transactions. Returns undefined if it can't
+ * reconstruct the signing payload (the nonce check is what actually settles exposure).
+ */
+export async function recoverKeyFromTx(network: NetworkId, txHash: string): Promise<Hex | undefined> {
+  const { client } = await getClient(network);
+  const tx = await client.getTransaction({ hash: txHash as Hex });
+  if (tx.r === undefined || tx.s === undefined) return undefined;
+  const sig = { r: tx.r as Hex, s: tx.s as Hex, ...(tx.yParity !== undefined ? { yParity: tx.yParity } : {}), ...(tx.v !== undefined ? { v: tx.v } : {}) };
+  // Rebuild the unsigned serialization and hash it, then recover the key.
+  const base = {
+    chainId: tx.chainId,
+    nonce: tx.nonce,
+    to: tx.to ?? undefined,
+    value: tx.value,
+    gas: tx.gas,
+    data: tx.input,
+  } as Record<string, unknown>;
+  if (tx.type === "eip1559" || tx.type === "eip2930") {
+    base.maxFeePerGas = tx.maxFeePerGas;
+    base.maxPriorityFeePerGas = tx.maxPriorityFeePerGas;
+    base.accessList = tx.accessList ?? [];
+    base.type = tx.type;
+  } else {
+    base.gasPrice = tx.gasPrice;
+    base.type = "legacy";
+  }
+  const serialized = serializeTransaction(base as never);
+  const hash = keccak256(serialized);
+  return recoverPublicKey({ hash, signature: sig as never });
 }
 
 /** Verifies that a signature really does reveal the public key (used in tests and as a sanity demo). */

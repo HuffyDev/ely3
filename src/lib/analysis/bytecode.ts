@@ -45,8 +45,12 @@ export function analyseBytecode(code: Hex): BytecodeFacts {
     const op = bytes[i];
     if (op >= OP.PUSH1 && op <= OP.PUSH32) {
       const n = op - OP.PUSH1 + 1;
-      if (op === OP.PUSH4 && i + 4 < bytes.length) {
-        facts.selectors.add("0x" + bytes.subarray(i + 1, i + 5).toString("hex"));
+      // Function selectors are 4 bytes, but solc pushes a selector with leading zero bytes using
+      // a shorter PUSH (e.g. 0x000af2a1 -> PUSH3 0x0af2a1). Capture PUSH1..PUSH4 immediates,
+      // left-padded to 4 bytes, so selectors with leading zeros aren't missed. Values that are not
+      // real selectors are inert — probes only ever test a fixed list of known selectors.
+      if (n <= 4 && i + n < bytes.length) {
+        facts.selectors.add("0x" + bytes.subarray(i + 1, i + 1 + n).toString("hex").padStart(8, "0"));
       }
       if (n === 1 && bytes[i + 1] === 0x01) lastPushOneAt = opIndex;
       i += n + 1;

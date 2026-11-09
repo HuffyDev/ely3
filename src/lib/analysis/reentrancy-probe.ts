@@ -19,6 +19,7 @@ import type { ProbeContext } from "./probes";
 const ATTACKER_ARTIFACT = path.join(process.cwd(), "contracts", "out", "ReentrancyAttacker.sol", "ReentrancyAttacker.json");
 const ATTACKER = "0x00000000000000000000000000000000005a3e77"; // deterministic probe address on the fork
 const VICTIM = "0x00000000000000000000000000000000005a3e88";
+const SENDER = "0x00000000000000000000000000000000005a3e66"; // separate gas-paying EOA
 
 function enc(sig: string, args: unknown[] = []) {
   const item = parseAbiItem(`function ${sig}`) as AbiFunction;
@@ -47,9 +48,10 @@ export async function runReentrancyProbe(ctx: ProbeContext): Promise<Finding[]> 
 
   const id = await rpc.snapshot();
   try {
-    // Place the attacker runtime code directly at a known address.
+    // Place the attacker runtime code at a known address and start it at ZERO balance, so its
+    // final balance reflects only what the attack moved — not gas refunds.
     await rpc.setCode(ATTACKER, runtime);
-    await rpc.setBalance(ATTACKER, 2n * 10n ** 18n);
+    await rpc.setBalance(ATTACKER, 0n);
 
     // Seed the target with a victim deposit so there is something to steal.
     await rpc.setBalance(VICTIM, 20n * 10n ** 18n);
@@ -59,12 +61,19 @@ export async function runReentrancyProbe(ctx: ProbeContext): Promise<Finding[]> 
     const depositCalldata = enc(depositSig);
     const withdrawCalldata = withdrawTakesAmount ? enc(withdrawSig, [10n ** 18n]) : enc(withdrawSig);
     const attack = enc("run(address,bytes,bytes)", [ctx.target, depositCalldata, withdrawCalldata]);
-    const res = await rpc.send(ATTACKER, ATTACKER, attack, 10n ** 18n);
+    // Gas is paid by a SEPARATE EOA (SENDER), never by the attacker contract, so gas accounting
+    // cannot inflate the attacker's measured balance. The attacker receives exactly 1 ETH to use.
+    const deposit = 10n ** 18n;
+    const res = await rpc.send(SENDER, ATTACKER, attack, deposit);
     if (!res.ok) return [];
 
-    const profitRes = await rpc.call(ATTACKER, enc("profit()"));
-    const profit = profitRes.ok ? word(profitRes.data) : 0n;
-    if (profit > 0n) {
+    // Net gain = final balance minus the 1 ETH of working capital it was given.
+    const balRes = await rpc.call(ATTACKER, enc("profit()"));
+    const profit = balRes.ok ? word(balRes.data) : 0n;
+    // profit() returns (balance - startBalance); startBalance was captured as the 1 ETH msg.value,
+    // so any positive value is ETH taken beyond the attacker's own deposit. Require a meaningful
+    // amount (> 0.01 ETH) to avoid rounding noise.
+    if (profit > 10n ** 16n) {
       const proof: ForkProof = {
         forkChainId: ctx.fork.chainId,
         liveChainId: ctx.fork.liveChainId,

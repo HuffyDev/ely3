@@ -89,6 +89,32 @@ export async function analyzeContract(opts: AnalyzeOptions): Promise<ContractRep
     );
   }
 
+  // ---- Bytecode-structural: spot-oracle reliance (works without source) ----
+  // A contract that calls getReserves()/slot0() carries that selector as a PUSH4 in its code.
+  // Combined with a borrow/price surface, that signals manipulable spot pricing.
+  if (!source) {
+    const callsSpot = presentSigs(selectors, SIGS.spotOracle).length > 0;
+    const callsFeed = presentSigs(selectors, SIGS.feedOracle).length > 0;
+    const lends = presentSigs(selectors, SIGS.borrowLike).length > 0 || presentSigs(selectors, SIGS.priceGetter).length > 0;
+    if (callsSpot && lends && !callsFeed) {
+      staticFindings.push(
+        (await import("./evidence")).makeFinding({
+          key: "bytecode:spot-oracle",
+          title: "Prices from a spot AMM pool a trade can move",
+          plain:
+            "The contract reads a pool's live reserves and exposes borrowing or pricing. A large swap can move that price in one transaction, enabling over-borrowing. (Detected from bytecode; verify against source.)",
+          severity: "high",
+          category: "oracle-manipulation",
+          exposure: "exploitable",
+          sources: ["bytecode"],
+          technical: "The deployed bytecode references a spot price source selector (getReserves / slot0 / getAmountsOut) and exposes a borrow/price function. Spot reserves are manipulable within a single transaction.",
+          recommendation: "Price from a TWAP or independent feed and sanity-check against a second source.",
+          evidence: "LIKELY",
+        }),
+      );
+    }
+  }
+
   // ---- Fork probes (confirmation) ----
   let forkFindings: Finding[] = [];
   let forkNote: string | undefined;

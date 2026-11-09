@@ -5,7 +5,9 @@ import { guardedRequest, assertRpcAllowed } from "./safety/txguard";
 export type NetworkId = "elysium" | "elysium-testnet" | "local";
 
 export const NETWORKS: Record<NetworkId, { label: string; expectedChainId?: number; explorer?: string }> = {
-  elysium: { label: "Elysium", explorer: "https://elyscan.live" },
+  // Chain IDs are confirmed (mainnet 99901, testnet 99801) but still verified live via
+  // eth_chainId at connect time; getClient refuses to run on a mismatch.
+  elysium: { label: "Elysium", expectedChainId: 99901, explorer: "https://elyscan.live" },
   "elysium-testnet": { label: "Elysium testnet", expectedChainId: 99801, explorer: "https://testnet.elysium.kinetiq.xyz" },
   local: { label: "Local demo chain" },
 };

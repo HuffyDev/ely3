@@ -9,8 +9,36 @@ import {
   READ_ONLY_METHODS,
 } from "@/lib/safety/txguard";
 
-const LIVE = "https://rpc.elysium.kinetiq.xyz";
+const MAINNET = "https://rpc.elysium.kinetiq.xyz";
+const TESTNET = "https://testnet-rpc.elysium.kinetiq.xyz";
+const LIVE = MAINNET;
 const FORK = "http://127.0.0.1:8611";
+const STATE_CHANGING = ["eth_sendTransaction", "eth_sendRawTransaction", "anvil_setBalance", "anvil_setCode", "anvil_impersonateAccount", "evm_snapshot", "evm_mine", "personal_sign", "eth_sign"];
+
+describe("no attack/test transaction can reach a live network, including TESTNET", () => {
+  beforeEach(() => unregisterFork(8611));
+
+  it("blocks every state-changing RPC to mainnet AND testnet", () => {
+    for (const url of [MAINNET, TESTNET]) {
+      for (const m of STATE_CHANGING) {
+        expect(() => assertRpcAllowed(url, { method: m }), `${m} -> ${url}`).toThrow(LiveNetworkGuardError);
+      }
+    }
+  });
+
+  it("blocks forge --broadcast / forking from testnet", () => {
+    registerFork(8611, 31337, 99801);
+    expect(() => assertSafeForgeArgs(["test", "--fork-url", TESTNET])).toThrow(LiveNetworkGuardError);
+    expect(() => assertSafeForgeArgs(["script", "Deploy", "--broadcast", "--rpc-url", TESTNET])).toThrow(LiveNetworkGuardError);
+    unregisterFork(8611);
+  });
+
+  it("read-only calls to testnet are allowed (we still inspect it)", () => {
+    for (const m of ["eth_chainId", "eth_getCode", "eth_call", "eth_getBalance", "eth_getTransactionByHash"]) {
+      expect(() => assertRpcAllowed(TESTNET, { method: m })).not.toThrow();
+    }
+  });
+});
 
 describe("live-network transaction guard", () => {
   beforeEach(() => {

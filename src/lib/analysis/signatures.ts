@@ -22,6 +22,11 @@ export const SIGS = {
   selfdestructish: ["kill()", "destroy()", "selfDestruct()"],
   arbitraryCall: ["execute(address,bytes)", "call(address,uint256,bytes)", "multicall(address[],bytes[])", "execute(address,uint256,bytes)"],
   permit: ["permit(address,address,uint256,uint256,uint8,bytes32,bytes32)"],
+  // Spot price sources that a single trade can move (manipulable), vs. a feed (not the same risk).
+  spotOracle: ["getReserves()", "slot0()", "getAmountsOut(uint256,address[])"],
+  feedOracle: ["latestAnswer()", "latestRoundData()", "getRoundData(uint80)"],
+  borrowLike: ["borrow(uint256)", "borrow(uint256,address)", "mint(uint256)", "mint(address,uint256)", "openPosition(uint256)", "leverage(uint256)"],
+  priceGetter: ["price()", "getPrice()", "getPrice(address)", "currentPrice()", "assetPrice(address)"],
   hook: [
     "getHookPermissions()",
     "beforeSwap(address,(address,address,uint24,int24,address),(bool,int256,uint160),bytes)",

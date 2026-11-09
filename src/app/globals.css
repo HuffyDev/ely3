@@ -360,10 +360,46 @@ p {
 .tag[data-sev="info"] {
   color: var(--text-muted);
 }
+/* Evidence levels must read as clearly different at a glance. */
 .tag[data-ev="CONFIRMED_ON_FORK"] {
   color: var(--accent);
   background: var(--accent-weak);
   border-color: transparent;
+  font-weight: 600;
+}
+.tag[data-ev="CONFIRMED_ON_FORK"]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.tag[data-ev="LIKELY"] {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+.tag[data-ev="LIKELY"]::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 2px solid var(--text-faint);
+}
+.tag[data-ev="REVIEW"] {
+  color: var(--text-muted);
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--border-strong);
+  font-style: italic;
+}
+.tag[data-ev="REVIEW"]::before {
+  content: "AI";
+  font-style: normal;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-faint);
 }
 
 /* Grade badge */

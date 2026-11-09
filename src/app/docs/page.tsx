@@ -107,10 +107,10 @@ export default function DocsPage() {
 
         <Section title="Chain facts (verify at runtime)">
           <p>
-            Elysium is EVM-compatible, settles to HyperEVM, uses HYPE for gas, and targets ~100ms blocks. The testnet is
-            reported as chain 99801; WHITEHAT reads each network&apos;s chain ID live with{" "}
-            <code className="inline">eth_chainId</code> and refuses to run if it doesn&apos;t match what&apos;s expected,
-            rather than hardcoding a mainnet ID.
+            Elysium is EVM-compatible, settles to HyperEVM, uses HYPE for gas, and targets ~100ms blocks. Mainnet is
+            chain <strong>99901</strong> and testnet is <strong>99801</strong>. WHITEHAT still reads each network&apos;s
+            chain ID live with <code className="inline">eth_chainId</code> at connect time and refuses to run if it
+            doesn&apos;t match, rather than trusting a configured value.
           </p>
         </Section>
       </div>

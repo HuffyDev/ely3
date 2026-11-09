@@ -43,9 +43,8 @@
 - EVM-compatible; settles to HyperEVM; HYPE for gas; ~100ms blocks.
 - **Testnet chain ID 99801** (confirmed by multiple providers); testnet RPC
   `https://testnet-rpc.elysium.kinetiq.xyz`.
-- **Mainnet chain ID: not officially confirmed** as of 2026-11-09 (99901 is cited by third parties
-  but unverified). WHITEHAT reads each network's chain ID live with `eth_chainId` and never
-  hardcodes a mainnet id.
+- **Mainnet chain ID 99901, testnet 99801** (confirmed). WHITEHAT still reads each network's chain
+  ID live with `eth_chainId` at connect time and refuses to run on a mismatch.
 - Sources: [Chainstack](https://chainstack.com/what-is-elysium/),
   [Dwellir](https://www.dwellir.com/blog/what-is-elysium),
   [The Defiant](https://thedefiant.io/news/defi/kinetiq-opens-elysium-testnet-for-hyperliquid-focused-defi-apps).

@@ -55,17 +55,6 @@ const PATTERNS: Pattern[] = [
     recommendation: "Remove selfdestruct or guard it behind strong access control.",
   },
   {
-    key: "static:unchecked-call",
-    test: /\.call\{[^}]*\}\s*\(\s*""\s*\)\s*;/,
-    title: "Low-level call return value may be ignored",
-    plain: "The contract makes a raw call and may not check whether it succeeded.",
-    severity: "low",
-    category: "unsafe-external-call",
-    exposure: "informational",
-    technical: "A low-level .call was found. Verify the boolean return is checked and reentrancy is handled.",
-    recommendation: "Check the return value and apply checks-effects-interactions or a reentrancy guard.",
-  },
-  {
     key: "static:assembly-sstore-impl",
     test: /sstore\s*\(\s*(_?IMPL(EMENTATION)?_?SLOT|0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc)/i,
     title: "Writes the proxy implementation slot directly",
@@ -121,6 +110,54 @@ export function runStaticSource(source: VerifiedSource): { findings: Finding[]; 
       );
     }
   }
+  // Genuinely unchecked low-level call: a `.call{...}("")` statement whose boolean return is not
+  // assigned (so success is ignored). Assigned calls like `(bool ok, ) = x.call{...}("")` are fine.
+  for (const m of text.matchAll(/([^\n;{}]*)\.call\{[^}]*\}\s*\(\s*(?:""|"")?\s*\)\s*;/g)) {
+    const lhs = m[1];
+    const assigned = /=\s*$/.test(lhs.trimEnd().slice(-40)) || /\)\s*=\s*[\w.\[\]]*$/.test(lhs) || /=\s*[\w.\[\]]*$/.test(lhs);
+    if (!assigned) {
+      findings.push(
+        makeFinding({
+          key: "static:unchecked-call",
+          title: "Low-level call return value is ignored",
+          plain: "The contract makes a raw call and does not check whether it succeeded, so a silent failure could go unnoticed.",
+          severity: "low",
+          category: "unsafe-external-call",
+          exposure: "informational",
+          sources: ["source-pattern"],
+          technical: "A low-level .call(...) statement was found whose boolean success value is not captured. Capture and check it.",
+          recommendation: "Assign and require the returned success boolean, or use a safe wrapper.",
+          evidence: "LIKELY",
+        }),
+      );
+      break;
+    }
+  }
+
+  // Spot-price oracle used for lending/pricing: a single trade can move it.
+  const usesSpot = /\.getReserves\s*\(|\.slot0\s*\(|getAmountsOut\s*\(/.test(text);
+  const usesFeed = /latestAnswer\s*\(|latestRoundData\s*\(/.test(text);
+  const pricesAndLends = /function\s+(price|getPrice|currentPrice)\b/i.test(text) || /function\s+(borrow|openPosition|leverage)\b/i.test(text);
+  if (usesSpot && pricesAndLends) {
+    findings.push(
+      makeFinding({
+        key: "static:spot-oracle",
+        title: "Prices from a spot AMM pool a trade can move",
+        plain:
+          "Collateral or asset value is read from a pool's live reserves. A large swap (often a flash loan) can move that price within one transaction, letting someone borrow or mint far more than they should.",
+        severity: "high",
+        category: "oracle-manipulation",
+        exposure: "exploitable",
+        sources: ["source-pattern"],
+        technical:
+          "The contract reads a spot price source (getReserves / slot0 / getAmountsOut) inside a pricing or borrowing path. Spot reserves are manipulable in a single transaction. A time-weighted (TWAP) or independent feed oracle resists this." +
+          (usesFeed ? " Note: a feed oracle is also referenced — check which one actually gates borrowing." : ""),
+        recommendation: "Price from a TWAP or an independent feed (e.g. Chainlink), and sanity-check against a second source. Do not use raw spot reserves for solvency decisions.",
+        evidence: "LIKELY",
+      }),
+    );
+  }
+
   // Signature replay: ecrecover without a nonce reference nearby
   if (/\becrecover\s*\(/.test(text) && !/nonce/i.test(text)) {
     findings.push(
