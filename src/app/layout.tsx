@@ -16,7 +16,8 @@ export const metadata: Metadata = {
   },
 };
 
-const themeScript = `(function(){try{var t=localStorage.getItem('wh-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+// Dark-first: default to dark unless the viewer has explicitly chosen light.
+const themeScript = `(function(){try{var t=localStorage.getItem('wh-theme');document.documentElement.setAttribute('data-theme', t||'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

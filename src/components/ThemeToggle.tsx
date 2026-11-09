@@ -6,8 +6,8 @@ export function ThemeToggle() {
 
   useEffect(() => {
     const stored = (typeof localStorage !== "undefined" && localStorage.getItem("wh-theme")) as "light" | "dark" | null;
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setTheme(stored ?? (prefersDark ? "dark" : "light"));
+    // Dark-first default.
+    setTheme(stored ?? "dark");
   }, []);
 
   function toggle() {

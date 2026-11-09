@@ -1,6 +1,6 @@
 # Detection benchmark
 
-Generated 2026-11-09T10:57:15.092Z by `npm run benchmark`. Measured against WHITEHAT's own contracts on a private local chain. **These are measured results, not claims.**
+Generated 2026-11-09T11:18:30.191Z by `npm run benchmark`. Measured against WHITEHAT's own contracts on a private local chain. **These are measured results, not claims.**
 
 Evidence key: **C** = Confirmed on fork · L = Likely (static) · R = Review (AI) · · = not detected.
 
@@ -76,7 +76,7 @@ Evidence key: **C** = Confirmed on fork · L = Likely (static) · R = Review (AI
 
 ## Quantum readiness demonstration
 
-Deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266: nonce 96, publicKeyExposed=true, isContract=false. Key recovery from first tx: matches address.
+Deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266: nonce 17, publicKeyExposed=true, isContract=false. Key recovery from first tx: matches address.
 
 ## Honest limitations
 

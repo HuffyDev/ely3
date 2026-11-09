@@ -40,8 +40,8 @@ export function ScanForm({ networks, autofocus }: { networks: { id: string; labe
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         <input
           className="field mono"
-          style={{ flex: "1 1 320px" }}
-          placeholder="Paste a contract or wallet address — 0x…"
+          style={{ flex: "1 1 300px" }}
+          placeholder="Paste an address — 0x…"
           aria-label="Contract or wallet address"
           value={value}
           autoFocus={autofocus}
@@ -58,8 +58,14 @@ export function ScanForm({ networks, autofocus }: { networks: { id: string; labe
             ))}
           </select>
         )}
-        <button className="btn btn-primary" disabled={busy} style={{ flex: "0 0 auto" }}>
-          {busy ? "Starting…" : "Run report"}
+        <button className="btn btn-primary btn-lg" disabled={busy} style={{ flex: "0 0 auto" }}>
+          {busy ? (
+            <>
+              <Spinner /> Scanning…
+            </>
+          ) : (
+            <>Run report →</>
+          )}
         </button>
       </div>
       {error && (
@@ -68,5 +74,15 @@ export function ScanForm({ networks, autofocus }: { networks: { id: string; labe
         </p>
       )}
     </form>
+  );
+}
+
+function Spinner() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" style={{ animation: "spin 0.8s linear infinite" }} aria-hidden>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <circle cx="12" cy="12" r="9" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="3" />
+      <path d="M12 3a9 9 0 0 1 9 9" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" />
+    </svg>
   );
 }
