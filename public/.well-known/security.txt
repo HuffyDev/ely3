@@ -1,0 +1,7 @@
+# WHITEHAT — responsible disclosure
+# We practice responsible disclosure and never publish working exploits.
+Policy: /disclosures
+Preferred-Languages: en
+# Operators: replace the contact below with your real security contact before launch.
+Contact: mailto:security@example.com
+Expires: 2027-11-09T00:00:00.000Z

@@ -1,0 +1,21 @@
+# Replit configuration for WHITEHAT.
+run = "npm run dev"
+entrypoint = "src/app/page.tsx"
+modules = ["nodejs-22"]
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "npm run build && npm run start"]
+build = ["sh", "-c", "npm run build"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 3000
+externalPort = 80
+
+[env]
+DATA_DIR = "./data"
+RUN_WORKER_IN_PROCESS = "true"
+DEMO_MODE = "true"

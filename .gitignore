@@ -1,0 +1,17 @@
+node_modules/
+.next/
+out/
+data/
+*.db
+*.db-*
+.env
+.env.*
+!.env.example
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+crytic-export/
+*.log
+.DS_Store
+next-env.d.ts
+tsconfig.tsbuildinfo

@@ -1,0 +1,42 @@
+{
+  "name": "whitehat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WHITEHAT — security reports for Elysium: contract breach risk, quantum readiness and wallet privacy.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.9"
+  },
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p ${PORT:-3000}",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:contracts": "cd contracts && forge test -vv",
+    "chain:check": "tsx scripts/chain-check.ts",
+    "worker": "tsx scripts/worker.ts",
+    "watcher": "tsx scripts/watcher.ts",
+    "demo": "tsx scripts/demo.ts",
+    "operator": "tsx scripts/operator.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
+    "better-sqlite3": "^13.0.3",
+    "geist": "^1.9.2",
+    "next": "^16.4.5",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "viem": "^2.57.17",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
